@@ -221,7 +221,7 @@ class httpserver():
         if self.handlers[r.geturi()].get(r.getmethod(),"") != "":
             self.handlers[r.geturi()][r.getmethod()](r,sock)
         else:
-            if self.handlers.get("404","") != "":
+            if self.handlers["404"].get("GET", None) != None:
                 self.handlers["404"](r,sock)
             else:
                 resp = httpresponse(404)
