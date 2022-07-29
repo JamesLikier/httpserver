@@ -207,15 +207,17 @@ class httpserver():
         if self.listening:
             self.listening = False
 
-    def register(self, method: str, uri: str, func):
-        if self.handlers.get(uri, None) == None:
-            self.handlers[uri] = dict()
+    def register(self, method: str, uri: str):
+        def inner(func):
+            if self.handlers.get(uri, None) == None:
+                self.handlers[uri] = dict()
 
-        p = method.partition(",")
-        self.handlers[uri][p[0]] = func
-        while p[1] != "":
-            p = p[2].partition(",")
+            p = method.partition(",")
             self.handlers[uri][p[0]] = func
+            while p[1] != "":
+                p = p[2].partition(",")
+                self.handlers[uri][p[0]] = func
+        return inner
     
     def dispatch(self, r: httprequest, sock: socket):
         if self.handlers.get(r.geturi(),"") != "" and self.handlers[r.geturi()].get(r.getmethod(),"") != "":
