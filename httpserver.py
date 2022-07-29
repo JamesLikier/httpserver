@@ -1,3 +1,4 @@
+from collections import defaultdict
 import socket
 import time
 import threading
@@ -27,7 +28,7 @@ class httpresponse():
 class httprequest():
     def __init__(self):
         self.startline = ""
-        self.headers = dict()
+        self.headers = defaultdict(str)
         self.body = dict()
         self.raw = b''
         self.method = ""
@@ -152,11 +153,11 @@ class httprequest():
         #header section complete
         
         #if Content-Length and Content-Type are not set, no body should be present
-        if r.headers.get("Content-Length","") == "" or r.headers.get("Content-Type","") == "":
+        if r.headers["Content-Length"] == "" or r.headers["Content-Type"] == "":
             return r
         
         #check for boundary assignment in Content-Type header
-        ct = r.headers.get("Content-Type","")
+        ct = r.headers["Content-Type"]
         if ct != "":
             ctp = ct.partition("; ")
             if ctp[1] != "":
@@ -171,7 +172,7 @@ class httprequest():
         #now for the body of the request...
 
         #check Content-Length and make sure we have complete body
-        cl = int(r.headers.get("Content-Length",""))
+        cl = int(r.headers["Content-Length"])
         bodydata = p[2]
         while len(bodydata) < cl:
             data = sock.recv(1024)
@@ -182,7 +183,7 @@ class httprequest():
 
         if r.headers["Content-Type"] == "application/x-www-form-urlencoded":
             r.body = httprequest.parseurlencoded(bodydata)
-        elif r.headers["Content-Type"] == "multipart/form-data" and r.headers.get("boundary","") != "":
+        elif r.headers["Content-Type"] == "multipart/form-data" and r.headers["boundary"] != "":
             r.body = httprequest.parsemultipart(bodydata, r.headers["boundary"].encode())
 
         return r
@@ -195,7 +196,7 @@ class httpserver():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listenthread = threading.Thread(target=serverloop,args=(self,))
         self.listening = False
-        self.handlers = dict()
+        self.handlers = defaultdict(dict)
 
     def start(self):
         if not self.listening:
@@ -209,9 +210,6 @@ class httpserver():
 
     def register(self, method: str, uri: str):
         def inner(func):
-            if self.handlers.get(uri, None) == None:
-                self.handlers[uri] = dict()
-
             p = method.partition(",")
             self.handlers[uri][p[0]] = func
             while p[1] != "":
@@ -220,7 +218,7 @@ class httpserver():
         return inner
     
     def dispatch(self, r: httprequest, sock: socket):
-        if self.handlers.get(r.geturi(),"") != "" and self.handlers[r.geturi()].get(r.getmethod(),"") != "":
+        if self.handlers[r.geturi()].get(r.getmethod(),"") != "":
             self.handlers[r.geturi()][r.getmethod()](r,sock)
         else:
             if self.handlers.get("404","") != "":
