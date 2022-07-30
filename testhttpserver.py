@@ -3,7 +3,7 @@ import socket
 
 s = httpserver.httpserver("localhost",80)
 
-@s.register("GET,POST","/")
+@s.register(("GET","POST"),"/")
 def root(req: httpserver.httprequest, sock: socket.socket):
     with open("main.html","r") as f:
         resp = httpserver.httpresponse()
@@ -11,7 +11,7 @@ def root(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = 200
         resp.send(sock)
 
-@s.register("GET,POST","/multipart?raw")
+@s.register(("GET","POST"),"/multipart?raw")
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","r") as f:
         resp = httpserver.httpresponse()
@@ -19,7 +19,7 @@ def multipartraw(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = 200
         resp.send(sock)
 
-@s.register("GET,POST","/multipart?body")
+@s.register(("GET","POST"),"/multipart?body")
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","r") as f:
         resp = httpserver.httpresponse()

@@ -213,13 +213,10 @@ class httpserver():
         if self.listening:
             self.listening = False
 
-    def register(self, method: str, uri: str):
+    def register(self, methods: tuple, uri: str):
         def inner(func):
-            p = method.partition(",")
-            self.handlers[uri][p[0]] = func
-            while p[1] != "":
-                p = p[2].partition(",")
-                self.handlers[uri][p[0]] = func
+            for method in methods:
+                self.handlers[uri][method] = func
         return inner
     
     def dispatch(self, r: httprequest, sock: socket):
