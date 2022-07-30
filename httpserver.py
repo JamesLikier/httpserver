@@ -47,20 +47,21 @@ class httprequest():
         return self.uri
 
     def parseurlencoded(data: bytes) -> dict:
-        d = dict()
+        parsed = dict()
         data = data.decode()
 
         bsep = "&"
         kvsep = "="
-        p = data.partition(bsep)
-        while p[1] != "":
-            kvp = p[0].partition(kvsep)
-            d[kvp[0]] = kvp[2]
-            p = p[2].partition(bsep)
-        kvp = p[0].partition(kvsep)
-        d[kvp[0]] = kvp[2]
 
-        return d
+        keyvalpair,foundsep,remainder = data.partition(bsep)
+        while foundsep != "":
+            key,_,val = keyvalpair.partition(kvsep)
+            parsed[key] = val
+            keyvalpair,foundsep,remainder = remainder.partition(bsep)
+        key,_,val = keyvalpair.partition(kvsep)
+        parsed[key] = val
+
+        return parsed
 
     def parsemultipart(data: bytes, bsep: bytes):
         sep = b'\r\n'
