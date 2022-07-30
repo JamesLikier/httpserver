@@ -123,75 +123,75 @@ class httprequest():
 
     
     def fromsocket(sock: socket.socket):
-        r = httprequest()
+        req = httprequest()
 
         clrf = b'\r\n'
 
         #get initial data from socket to begin parsing
         data = sock.recv(1024)
-        r.raw += data
+        req.raw += data
 
         #first line of http request is the startline
-        p = data.partition(clrf)
-        r.startline = p[0].decode()
+        startline,_,dataremainder = data.partition(clrf)
+        req.startline = startline.decode()
 
         #if the rest of the request is a CLRF, we have a one line request
-        if p[2] == clrf:
-            return r
+        if dataremainder == clrf:
+            return req
 
         #everything until double CLRF encountered is our header section
         hsep = b': '
-        p = p[2].partition(clrf)
-        while p[0] != b'' and p[1] == clrf:
+        header,foundsep,dataremainder = dataremainder.partition(clrf)
+        while header != b'' and foundsep == clrf:
             #parse header tags
-            hp = p[0].partition(hsep)
-            r.headers[hp[0].decode()] = hp[2].decode()
+            headerkey,_,headerval = header.partition(hsep)
+            req.headers[headerkey.decode()] = headerval.decode()
 
             #get next partition
-            p = p[2].partition(clrf)
+            header,foundsep,dataremainder = dataremainder.partition(clrf)
 
             #if we don't find another CLRF, we need to call recv on socket again...
-            if p[1] == b'':
+            if foundsep == b'':
                 data = sock.recv(1024)
-                r.raw += data
-                p = (p[0] + data).partition(clrf)
+                req.raw += data
+                header,foundsep,dataremainder = (header + data).partition(clrf)
         #header section complete
         
         #if Content-Length and Content-Type are not set, no body should be present
-        if r.headers["Content-Length"] == "" or r.headers["Content-Type"] == "":
-            return r
+        if req.headers["Content-Length"] == "" or req.headers["Content-Type"] == "":
+            return req
         
         #check for boundary assignment in Content-Type header
-        ct = r.headers["Content-Type"]
+        ct = req.headers["Content-Type"]
         if ct != "":
-            ctp = ct.partition("; ")
-            if ctp[1] != "":
+            contenttype,foundsep,boundarydata = ct.partition("; ")
+            if foundsep != "":
                 #we have boundary present
 
                 #fix Content-Type header
-                r.headers["Content-Type"] = ctp[0]
+                req.headers["Content-Type"] = contenttype
                 #set boundary header
-                ctp = ctp[2].partition("=")
-                r.headers[ctp[0]] = ctp[2]
+                boundarykey,_,boundaryval = boundarydata.partition("=")
+                req.headers[boundarykey] = boundaryval
         
         #now for the body of the request...
 
         #check Content-Length and make sure we have complete body
-        cl = int(r.headers["Content-Length"])
-        bodydata = p[2]
-        while len(bodydata) < cl:
+        contentlength = int(req.headers["Content-Length"])
+        bodydata = dataremainder
+        while len(bodydata) < contentlength:
             data = sock.recv(1024)
-            r.raw += data
+            req.raw += data
             bodydata += data
         
         #body is now ready for parsing
 
-        if r.headers["Content-Type"] == "application/x-www-form-urlencoded":
-            r.body = httprequest.parseurlencoded(bodydata)
-        elif r.headers["Content-Type"] == "multipart/form-data" and r.headers["boundary"] != "":
-            r.body = httprequest.parsemultipart(bodydata, r.headers["boundary"].encode())
+        if req.headers["Content-Type"] == "application/x-www-form-urlencoded":
+            req.body = httprequest.parseurlencoded(bodydata)
+        elif req.headers["Content-Type"] == "multipart/form-data" and req.headers["boundary"] != "":
+            req.body = httprequest.parsemultipart(bodydata, req.headers["boundary"].encode())
 
-        return r
+        return req
 
 class httpserver():
 
