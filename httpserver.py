@@ -64,56 +64,60 @@ class httprequest():
         return parsed
 
     def parsemultipart(data: bytes, bsep: bytes):
-        sep = b'\r\n'
+        clrf = b'\r\n'
         hsep = b': '
         asep = b'; '
         bsep = b'--' + bsep
 
         blocks = dict()
-        p = data.partition(bsep)
-        while p[1] == bsep:
-            if p[0] != b'':
-                #headers for form data should be present before body
-                #first 2 bytes should be sep, so we can get rid of them
-                bp = p[0][2:].partition(sep)
+        blockbytes,foundbodysep,bodybytesremainder = data.partition(bsep)
+        while foundbodysep == bsep:
+            #if blockbytes == b'', then we have encountered the intial bsep
+            if blockbytes != b'':
                 block = dict()
 
-                #headers continue until two sep encountered
-                while bp[0] != b'':
+                #first 2 bytes should be CLRF, so we can get rid of them
+                blockbytes = blockbytes[2:]
+
+                #headers for form data should be present before body
+                headerbytes,foundheaderblocksep,blockbytesremainder = blockbytes.partition(clrf)
+
+                #header will be empty when 2 CLRF are encountered, indicating end of headers
+                while headerbytes != b'':
                     #parse header
                     #content-disposition can contain ';'
-                    hp = bp[0].partition(hsep)
+                    header,foundheadersep,headerremainder = headerbytes.partition(hsep)
                         
                     #if we have the arg sep (asep) in our header line, we need to parse this line further
-                    if asep in hp[2]:
-                        ap = hp[2].partition(asep)
+                    if asep in headerremainder:
+                        headerval,foundargsep,headerremainder = headerremainder.partition(asep)
 
                         #first part is assigned to header
-                        block[hp[0].decode()] = ap[0].decode()
+                        block[header.decode()] = headerval.decode()
 
                         #any further args can be assigned to their own variable
-                        ap = ap[2].partition(asep)
-                        while ap[1] != b'':
-                            avp = ap[0].decode().partition('=')
-                            if avp[1] != '':
-                                block[avp[0]] = avp[2].strip('"')
-                            ap = ap[2].partition(asep)
-                        #get the last trailing arg
-                        avp = ap[0].decode().partition('=')
-                        if avp[1] != '':
-                            block[avp[0]] = avp[2].strip('"')
+                        headerval,foundargsep,headerremainder = headerremainder.partition(asep)
+                        while foundargsep != b'':
+                            argkey,foundassignsep,argval = headerval.decode().partition('=')
+                            if foundassignsep != '':
+                                block[argkey] = argval.strip('"')
+                            headerval,foundargsep,headerremainder = headerremainder.partition(asep)
+                        #the last arg will be found in headerval
+                        argkey,foundassignsep,argval = headerval.decode().partition('=')
+                        if foundassignsep != '':
+                            block[argkey] = argval.strip('"')
                     #no arg sep found, just assign to header
                     else:
-                        block[hp[0].decode()] = hp[2].decode()
+                        block[header.decode()] = headerremainder.decode()
                     
-                    bp = bp[2].partition(sep)
+                    headerbytes,foundheadersep,blockbytesremainder = blockbytesremainder.partition(clrf)
 
-                #left with body
-                block["value"] = bp[2][:-2]
+                #left with body, trim CLRF from the end
+                block["value"] = blockbytesremainder[:-2]
 
                 #add block to blocks dict
                 blocks[block.get("name","")] = block
-            p = p[2].partition(bsep)
+            blockbytes,foundbodysep,bodybytesremainder = bodybytesremainder.partition(bsep)
 
         return blocks
 
