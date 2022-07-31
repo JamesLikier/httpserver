@@ -15,7 +15,7 @@ def root(req: httpserver.httprequest, sock: socket.socket):
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","r") as f:
         resp = httpserver.httpresponse()
-        resp.body = f.read().encode().replace(b'@placeholder', req.raw)
+        resp.body = f.read().encode().replace(b'@placeholder', str(req.raw).encode())
         resp.statuscode = 200
         resp.send(sock)
 
