@@ -28,11 +28,14 @@ class httpresponse():
 class httprequest():
     def __init__(self):
         self.startline = ""
-        self.headers = defaultdict(str)
+        self.headers = defaultdict(bytes)
         self.body = dict()
         self.raw = b''
         self.method = ""
         self.uri = ""
+        self.contenttype = ""
+        self.contentlength = 0
+        self.boundary = b''
 
     def getmethod(self):
         if self.method == "":
@@ -121,78 +124,72 @@ class httprequest():
 
         return blocks
 
-    
-    def fromsocket(sock: socket.socket):
-        req = httprequest()
-
+    def frombytes(data: bytes):
         clrf = b'\r\n'
+        headersep = b': '
+        headerend = clrf+clrf
+        req = httprequest()
+        req.raw = data
+        headerdata,_,bodydata = data.partition(headerend)
 
-        #get initial data from socket to begin parsing
-        data = sock.recv(1024)
-        req.raw += data
-
-        #first line of http request is the startline
-        startline,_,dataremainder = data.partition(clrf)
+        #first line of header is the startline
+        startline,_,headerdata = headerdata.partition(clrf)
         req.startline = startline.decode()
 
-        #if the rest of the request is a CLRF, we have a one line request
-        if dataremainder == clrf:
-            return req
+        #the rest are http headers
+        while headerdata != b'':
+            header,_,headerdata = headerdata.partition(clrf)
+            headerkey,_,headerval = header.partition(headersep)
+            req.headers[headerkey.decode()] = headerval
 
-        #everything until double CLRF encountered is our header section
-        hsep = b': '
-        header,foundsep,dataremainder = dataremainder.partition(clrf)
-        while header != b'' and foundsep == clrf:
-            #parse header tags
-            headerkey,_,headerval = header.partition(hsep)
-            req.headers[headerkey.decode()] = headerval.decode()
+        #assign our properties from parsed values
+        req.contentlength = int(req.headers["Content-Length"] if req.headers["Content-Length"] != b'' else 0)
+        req.method,_,reststartline = req.startline.partition(" ")
+        req.uri,_,_ = reststartline.partition(" ")
+        req.contenttype,_,req.boundary = req.headers["Content-Type"].partition(b'; boundary=')
+        req.contenttype = req.contenttype.decode()
 
-            #get next partition
-            header,foundsep,dataremainder = dataremainder.partition(clrf)
-
-            #if we don't find another CLRF, we need to call recv on socket again...
-            if foundsep == b'':
-                data = sock.recv(1024)
-                req.raw += data
-                header,foundsep,dataremainder = (header + data).partition(clrf)
-        #header section complete
-        
-        #if Content-Length and Content-Type are not set, no body should be present
-        if req.headers["Content-Length"] == "" or req.headers["Content-Type"] == "":
-            return req
-        
-        #check for boundary assignment in Content-Type header
-        ct = req.headers["Content-Type"]
-        if ct != "":
-            contenttype,foundsep,boundarydata = ct.partition("; ")
-            if foundsep != "":
-                #we have boundary present
-
-                #fix Content-Type header
-                req.headers["Content-Type"] = contenttype
-                #set boundary header
-                boundarykey,_,boundaryval = boundarydata.partition("=")
-                req.headers[boundarykey] = boundaryval
-        
-        #now for the body of the request...
-
-        #check Content-Length and make sure we have complete body
-        contentlength = int(req.headers["Content-Length"])
-        bodydata = dataremainder
-        while len(bodydata) < contentlength:
-            data = sock.recv(1024)
-            req.raw += data
-            bodydata += data
-        
-        #body is now ready for parsing
-
-        if req.headers["Content-Type"] == "application/x-www-form-urlencoded":
+        #next, handle the body
+        if req.contenttype == "multipart/form-data":
+            req.body = httprequest.parsemultipart(bodydata, req.boundary)
+        elif req.contenttype == "application/x-www-form-urlencoded":
             req.body = httprequest.parseurlencoded(bodydata)
-        elif req.headers["Content-Type"] == "multipart/form-data" and req.headers["boundary"] != "":
-            req.body = httprequest.parsemultipart(bodydata, req.headers["boundary"].encode())
-
+        
         return req
 
+    def fromsocket(sock: socket.socket):
+        clrf = b'\r\n'
+        headerend = b'\r\n\r\n'
+        recvsize = 1024
+
+        data = sock.recv(recvsize)
+
+        #http headers continue until two CLRF
+
+        #if we cannot find two CLRF in our data and len(data) is recvsize,
+        #we need to call recv again
+        headerendindex = data.find(headerend)
+        while headerendindex == -1:
+            data += sock.recv(recvsize)
+            headerendindex = data.find(headerend)
+        
+        marker = b'Content-Length: '
+        begin = data.find(marker)
+
+        #no Content-Length was found, so we do not have a body to receive
+        if begin == -1:
+            return httprequest.frombytes(data)
+
+        #Content-Length was found, make sure we receive body data
+        end = data.find(clrf,begin)
+        contentlength = int(data[begin+len(marker):end].decode())
+        
+        bodystartindex = headerendindex + len(headerend)
+        while (len(data) - bodystartindex) < contentlength:
+            data += sock.recv(recvsize)
+
+        return httprequest.frombytes(data)
+    
 class httpserver():
 
     def __init__(self, addr: str, port: int):
@@ -220,8 +217,8 @@ class httpserver():
         return inner
     
     def dispatch(self, r: httprequest, sock: socket):
-        if self.handlers[r.geturi()].get(r.getmethod(),"") != "":
-            self.handlers[r.geturi()][r.getmethod()](r,sock)
+        if self.handlers[r.uri].get(r.method,"") != "":
+            self.handlers[r.uri][r.method](r,sock)
         else:
             if self.handlers["404"].get("GET", None) != None:
                 self.handlers["404"](r,sock)
