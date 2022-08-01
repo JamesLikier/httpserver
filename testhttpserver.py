@@ -31,6 +31,8 @@ def multipartraw(req: httpserver.httprequest, sock: socket.socket):
 def static(req: httpserver.httprequest, sock: socket.socket):
     resp = httpserver.httpresponse()
     try:
+        if req.uri.find("./") > -1:
+            raise Exception
         with open("."+req.uri, "rb") as f:
             resp.body = f.read()
             resp.statuscode = 200
