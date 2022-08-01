@@ -20,7 +20,7 @@ def multipartraw(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
 
 @s.register(("GET","POST"),"/multipart?body")
-def multipartraw(req: httpserver.httprequest, sock: socket.socket):
+def multipartbody(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
         resp.body = f.read().replace(b'@placeholder',str(req.body).encode())
