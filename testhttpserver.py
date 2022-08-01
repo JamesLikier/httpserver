@@ -27,6 +27,14 @@ def multipartbody(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = 200
         resp.send(sock)
 
+@s.register(("GET","POST"),"/urlenc")
+def urlenc(req: httpserver.httprequest, sock: socket.socket):
+    with open("urlencform.html","rb") as f:
+        resp = httpserver.httpresponse()
+        resp.body = f.read().replace(b'@placeholder',str(req.body).encode())
+        resp.statuscode = 200
+        resp.send(sock)
+
 @s.registerstatic("/static/")
 def static(req: httpserver.httprequest, sock: socket.socket):
     resp = httpserver.httpresponse()
