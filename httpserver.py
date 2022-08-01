@@ -199,6 +199,7 @@ class httpserver():
         self.listenthread = threading.Thread(target=serverloop,args=(self,))
         self.listening = False
         self.handlers = defaultdict(dict)
+        self.statichandlers = dict()
 
     def start(self):
         if not self.listening:
@@ -216,7 +217,18 @@ class httpserver():
                 self.handlers[uri][method] = func
         return inner
     
+    def registerstatic(self, uri: str):
+        def inner(func):
+            self.statichandlers[uri] = func
+        return inner
+    
     def dispatch(self, r: httprequest, sock: socket):
+        #check static handlers first
+        for uri in self.statichandlers.keys():
+            if r.uri.startswith(uri):
+                self.statichandlers[uri](r,sock)
+
+        #app handlers next
         if self.handlers[r.uri].get(r.method,"") != "":
             self.handlers[r.uri][r.method](r,sock)
         else:
