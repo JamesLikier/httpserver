@@ -5,25 +5,25 @@ s = httpserver.httpserver("localhost",80)
 
 @s.register(("GET","POST"),"/")
 def root(req: httpserver.httprequest, sock: socket.socket):
-    with open("main.html","r") as f:
+    with open("main.html","rb") as f:
         resp = httpserver.httpresponse()
-        resp.body = f.read().encode()
+        resp.body = f.read()
         resp.statuscode = 200
         resp.send(sock)
 
 @s.register(("GET","POST"),"/multipart?raw")
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
-    with open("multipartform.html","r") as f:
+    with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
-        resp.body = f.read().encode().replace(b'@placeholder', str(req.raw).encode())
+        resp.body = f.read().replace(b'@placeholder', str(req.raw).encode())
         resp.statuscode = 200
         resp.send(sock)
 
 @s.register(("GET","POST"),"/multipart?body")
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
-    with open("multipartform.html","r") as f:
+    with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
-        resp.body = f.read().encode().replace(b'@placeholder',str(req.body).encode())
+        resp.body = f.read().replace(b'@placeholder',str(req.body).encode())
         resp.statuscode = 200
         resp.send(sock)
 
