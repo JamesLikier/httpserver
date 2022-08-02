@@ -37,18 +37,6 @@ class httprequest():
         self.contentlength = 0
         self.boundary = b''
 
-    def getmethod(self):
-        if self.method == "":
-            if self.startline != "":
-                self.method = self.startline.partition(" ")[0]
-        return self.method
-    
-    def geturi(self):
-        if self.uri == "":
-            if self.startline != "":
-                self.uri = self.startline.partition(" ")[2].partition(" ")[0]
-        return self.uri
-
     def parseurlencoded(data: bytes) -> dict:
         parsed = dict()
         data = data.decode()
