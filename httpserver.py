@@ -1,7 +1,16 @@
 from collections import defaultdict
+from dataclasses import dataclass
 import socket
 import time
 import threading
+import re
+
+@dataclass(frozen=True)
+class formdata():
+    name: str
+    value: bytes
+    contenttype: str = ""
+    filename: str = ""
 
 class httpresponse():
     statuscodes = {
@@ -47,68 +56,54 @@ class httprequest():
         keyvalpair,foundsep,remainder = data.partition(bsep)
         while foundsep != "":
             key,_,val = keyvalpair.partition(kvsep)
-            parsed[key] = val
+            parsed[key] = formdata(key,val)
             keyvalpair,foundsep,remainder = remainder.partition(bsep)
         key,_,val = keyvalpair.partition(kvsep)
-        parsed[key] = val
+        parsed[key] = formdata(key,val)
 
         return parsed
 
-    def parsemultipart(data: bytes, bsep: bytes):
+    def parsemultipart(data: bytes, boundary: bytes):
         clrf = b'\r\n'
-        hsep = b': '
-        asep = b'; '
-        bsep = b'--' + bsep
+        boundary = b'--' + boundary
 
         blocks = dict()
-        blockbytes,foundbodysep,bodybytesremainder = data.partition(bsep)
-        while foundbodysep == bsep:
-            #if blockbytes == b'', then we have encountered the intial bsep
-            if blockbytes != b'':
-                block = dict()
+        blockbytes,foundboundary,bodybytesremainder = data.partition(boundary)
+        while foundboundary == boundary:
+            headername = ""
+            filename = ""
+            contenttype = ""
+            #if blockbytes == b'', then we have encountered the intial boundary
+            if blockbytes == b'':
+                blockbytes,foundboundary,bodybytesremainder = bodybytesremainder.partition(boundary)
+                continue
 
-                #first 2 bytes should be CLRF, so we can get rid of them
-                blockbytes = blockbytes[2:]
+            #headers continue until double CLRF
+            headerbytes,_,bodybytes = blockbytes.partition(clrf + clrf)
+            #trim \r\n from bodybytes
+            bodybytes = bodybytes[:-2]
 
-                #headers for form data should be present before body
-                headerbytes,foundheaderblocksep,blockbytesremainder = blockbytes.partition(clrf)
+            #treat headerbytes as string
+            header = headerbytes.decode()
 
-                #header will be empty when 2 CLRF are encountered, indicating end of headers
-                while headerbytes != b'':
-                    #parse header
-                    #content-disposition can contain ';'
-                    header,foundheadersep,headerremainder = headerbytes.partition(hsep)
-                        
-                    #if we have the arg sep (asep) in our header line, we need to parse this line further
-                    if asep in headerremainder:
-                        headerval,foundargsep,headerremainder = headerremainder.partition(asep)
+            #find all header values (ie key: val)
+            matches = re.findall("([\S]+): ([^;]+)",header)
+            for k,v in matches:
+                if "Content-Type" in k:
+                    contenttype = v
 
-                        #first part is assigned to header
-                        block[header.decode()] = headerval.decode()
+            #find all attributes (ie key=val)
+            matches = re.findall("([\S]+)=\"?([^\";]*)\"?",header)
+            for k,v in matches:
+                if "name" == k:
+                    headername = v
+                elif "filename" == k:
+                    filename = v
 
-                        #any further args can be assigned to their own variable
-                        headerval,foundargsep,headerremainder = headerremainder.partition(asep)
-                        while foundargsep != b'':
-                            argkey,foundassignsep,argval = headerval.decode().partition('=')
-                            if foundassignsep != '':
-                                block[argkey] = argval.strip('"')
-                            headerval,foundargsep,headerremainder = headerremainder.partition(asep)
-                        #the last arg will be found in headerval
-                        argkey,foundassignsep,argval = headerval.decode().partition('=')
-                        if foundassignsep != '':
-                            block[argkey] = argval.strip('"')
-                    #no arg sep found, just assign to header
-                    else:
-                        block[header.decode()] = headerremainder.decode()
-                    
-                    headerbytes,foundheadersep,blockbytesremainder = blockbytesremainder.partition(clrf)
+            fd = formdata(headername,bodybytes,contenttype=contenttype,filename=filename)
+            blocks[headername] = fd
 
-                #left with body, trim CLRF from the end
-                block["value"] = blockbytesremainder[:-2]
-
-                #add block to blocks dict
-                blocks[block.get("name","")] = block
-            blockbytes,foundbodysep,bodybytesremainder = bodybytesremainder.partition(bsep)
+            blockbytes,foundboundary,bodybytesremainder = bodybytesremainder.partition(boundary)
 
         return blocks
 
