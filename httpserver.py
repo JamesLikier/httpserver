@@ -1,3 +1,4 @@
+from enum import Enum
 from collections import defaultdict
 from dataclasses import dataclass
 import socket
@@ -12,21 +13,20 @@ class formdata():
     contenttype: str = ""
     filename: str = ""
 
-class httpresponse():
-    statuscodes = {
-        0: "Not Defined",
-        404: "Not Found", 
-        200: "OK"
-        }
+class statuscodes(Enum):
+    OK = (200,"OK")
+    NOT_FOUND = (404,"Not Found")
+    NOT_DEFINED = (-1,"Not Defined")
 
-    def __init__(self, statuscode = 0, body = b''):
+class httpresponse():
+    def __init__(self, statuscode = statuscodes.NOT_DEFINED, body = b''):
         self.statuscode = statuscode
         self.body = body
     
     def format(self):
         b = "HTTP/1.1 ".encode()
-        b += (str(self.statuscode) + " ").encode()
-        b += (httpresponse.statuscodes[self.statuscode] + "\r\n").encode()
+        b += (str(self.statuscode.value[0]) + " ").encode()
+        b += (self.statuscode.value[1] + "\r\n").encode()
         b += ("Content-Length: " + str(len(self.body)) + "\r\n\r\n").encode()
         b += self.body
         return b
@@ -218,7 +218,7 @@ class httpserver():
             if self.handlers["404"].get("GET", None) != None:
                 self.handlers["404"](r,sock)
             else:
-                resp = httpresponse(404)
+                resp = httpresponse(statuscodes.NOT_FOUND)
                 sock.send(resp.format())
 
 
