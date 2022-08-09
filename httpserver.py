@@ -189,38 +189,45 @@ class httpserver():
             self.listening = True
             self.listenthread.start()
             
-    
     def stop(self):
         if self.listening:
             self.listening = False
 
+    def default404(req: httprequest, sock: socket.socket):
+        resp = httpresponse(statuscodes.NOT_FOUND)
+        sock.send(resp.format())
+
     def register(self, methods: tuple, uri: str):
         def inner(func):
             for method in methods:
-                self.handlers[uri][method] = func
+                self.handlers[re.compile(uri)][method] = func
         return inner
     
     def registerstatic(self, uri: str):
         def inner(func):
-            self.statichandlers[uri] = func
+            self.statichandlers[re.compile(uri)] = func
         return inner
     
     def dispatch(self, r: httprequest, sock: socket):
         #check static handlers first
-        for uri in self.statichandlers.keys():
-            if r.uri.startswith(uri):
-                self.statichandlers[uri](r,sock)
+        handler = None
+        for uriRegex in self.statichandlers.keys():
+            uriRegex: re
+            if uriRegex.match(r.uri):
+                handler = self.statichandlers[uriRegex]
+                break
 
         #app handlers next
-        if self.handlers[r.uri].get(r.method,"") != "":
-            self.handlers[r.uri][r.method](r,sock)
-        else:
-            if self.handlers["404"].get("GET", None) != None:
-                self.handlers["404"](r,sock)
-            else:
-                resp = httpresponse(statuscodes.NOT_FOUND)
-                sock.send(resp.format())
+        for uriRegex in self.handlers.keys():
+            uriRegex: re
+            if uriRegex.match(r.uri):
+                handler = self.handlers[uriRegex].get(r.method,None)
+                break
+        
+        if handler == None: handler = httpserver.default404
 
+        print(f"Dispatching {r.uri}")
+        handler(r,sock)
 
 def acceptloop(*args, **kwargs):
     server: httpserver

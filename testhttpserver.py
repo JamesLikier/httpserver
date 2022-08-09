@@ -3,7 +3,7 @@ import socket
 
 s = httpserver.httpserver("localhost",80)
 
-@s.register(("GET","POST"),"/")
+@s.register(("GET","POST"),"/$")
 def root(req: httpserver.httprequest, sock: socket.socket):
     with open("main.html","rb") as f:
         resp = httpserver.httpresponse()
@@ -11,7 +11,7 @@ def root(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = httpserver.statuscodes.OK
         resp.send(sock)
 
-@s.register(("GET","POST"),"/multipart?raw")
+@s.register(("GET","POST"),"/multipart\?raw$")
 def multipartraw(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
@@ -19,7 +19,7 @@ def multipartraw(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = httpserver.statuscodes.OK
         resp.send(sock)
 
-@s.register(("GET","POST"),"/multipart?body")
+@s.register(("GET","POST"),"/multipart\?body$")
 def multipartbody(req: httpserver.httprequest, sock: socket.socket):
     with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
@@ -27,7 +27,7 @@ def multipartbody(req: httpserver.httprequest, sock: socket.socket):
         resp.statuscode = httpserver.statuscodes.OK
         resp.send(sock)
 
-@s.register(("GET","POST"),"/urlenc")
+@s.register(("GET","POST"),"/urlenc$")
 def urlenc(req: httpserver.httprequest, sock: socket.socket):
     with open("urlencform.html","rb") as f:
         resp = httpserver.httpresponse()
@@ -36,7 +36,7 @@ def urlenc(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
         resp.send(sock)
 
-@s.registerstatic("/static/")
+@s.registerstatic("/static/.*")
 def static(req: httpserver.httprequest, sock: socket.socket):
     resp = httpserver.httpresponse()
     try:
