@@ -1,3 +1,4 @@
+from difflib import Match
 from enum import Enum
 from collections import defaultdict
 from dataclasses import dataclass
@@ -193,7 +194,7 @@ class httpserver():
         if self.listening:
             self.listening = False
 
-    def default404(req: httprequest, sock: socket.socket):
+    def default404(req: httprequest, match: Match, sock: socket.socket):
         resp = httpresponse(statuscodes.NOT_FOUND)
         sock.send(resp.format())
 
@@ -211,23 +212,26 @@ class httpserver():
     def dispatch(self, r: httprequest, sock: socket):
         #check static handlers first
         handler = None
+        match = None
         for uriRegex in self.statichandlers.keys():
             uriRegex: re
-            if uriRegex.match(r.uri):
+            match = uriRegex.match(r.uri)
+            if match:
                 handler = self.statichandlers[uriRegex]
                 break
 
         #app handlers next
         for uriRegex in self.handlers.keys():
             uriRegex: re
-            if uriRegex.match(r.uri):
+            match = uriRegex.match(r.uri)
+            if match:
                 handler = self.handlers[uriRegex].get(r.method,None)
                 break
         
         if handler == None: handler = httpserver.default404
 
         print(f"Dispatching {r.uri}")
-        handler(r,sock)
+        handler(r,match,sock)
 
 def acceptloop(*args, **kwargs):
     server: httpserver

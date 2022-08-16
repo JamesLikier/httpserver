@@ -1,10 +1,11 @@
 import httpserver
 import socket
+from re import Match
 
 s = httpserver.httpserver("localhost",80)
 
 @s.register(("GET","POST"),"/$")
-def root(req: httpserver.httprequest, sock: socket.socket):
+def root(req: httpserver.httprequest, match: Match, sock: socket.socket):
     with open("main.html","rb") as f:
         resp = httpserver.httpresponse()
         resp.body = f.read()
@@ -12,7 +13,7 @@ def root(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
 
 @s.register(("GET","POST"),"/multipart\?raw$")
-def multipartraw(req: httpserver.httprequest, sock: socket.socket):
+def multipartraw(req: httpserver.httprequest, match: Match, sock: socket.socket):
     with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
         resp.body = f.read().replace(b'@placeholder', str(req.raw).encode())
@@ -20,7 +21,7 @@ def multipartraw(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
 
 @s.register(("GET","POST"),"/multipart\?body$")
-def multipartbody(req: httpserver.httprequest, sock: socket.socket):
+def multipartbody(req: httpserver.httprequest, match: Match, sock: socket.socket):
     with open("multipartform.html","rb") as f:
         resp = httpserver.httpresponse()
         resp.body = f.read().replace(b'@placeholder',str(req.body).encode())
@@ -28,7 +29,7 @@ def multipartbody(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
 
 @s.register(("GET","POST"),"/urlenc$")
-def urlenc(req: httpserver.httprequest, sock: socket.socket):
+def urlenc(req: httpserver.httprequest, match: Match, sock: socket.socket):
     with open("urlencform.html","rb") as f:
         resp = httpserver.httpresponse()
         resp.body = f.read().replace(b'@placeholder',str(req.body).encode())
@@ -37,7 +38,7 @@ def urlenc(req: httpserver.httprequest, sock: socket.socket):
         resp.send(sock)
 
 @s.registerstatic("/static/.*")
-def static(req: httpserver.httprequest, sock: socket.socket):
+def static(req: httpserver.httprequest, match: Match, sock: socket.socket):
     resp = httpserver.httpresponse()
     try:
         if req.uri.find("./") > -1:
