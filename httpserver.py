@@ -247,6 +247,7 @@ class httpserver():
         self.listening = False
         self.handlers = defaultdict(dict)
         self.statichandlers = dict()
+        self.handler404 = httpserver.default404
 
     def start(self):
         if not self.listening:
@@ -291,7 +292,7 @@ class httpserver():
                 handler = self.handlers[uriRegex].get(r.method,None)
                 break
         
-        if handler == None: handler = httpserver.default404
+        if handler == None: handler = self.handler404
 
         print(f"Dispatching {r.uri}")
         handler(r,match,sock)
