@@ -12,7 +12,20 @@ class formdata():
     name: str
     value: bytes
     contenttype: str = ""
-    filename: str = ""
+    filename: str = None
+
+    def formatUrlEnc(self):
+        return f"{self.name}=".encode() + self.value.encode()
+    
+    def formatFormData(self):
+        header = f'Content-Disposition: form-data; name="{self.name}"'
+        if self.filename != None:
+            header += f'; filename="{self.filename}"'
+        if self.contenttype != "":
+            header += f'\r\nContent-Type: {self.contenttype}'
+        body = self.value
+
+        return header.encode() + b'\r\n\r\n' + body + b'\r\n'
 
 class statuscodes(Enum):
     OK = (200,"OK")
@@ -35,19 +48,35 @@ class httpresponse():
     def send(self, sock: socket.socket):
         sock.send(self.format())
 
-class httprequest():
-    def __init__(self):
-        self.startline = ""
-        self.headers = defaultdict(bytes)
-        self.body = dict()
-        self.raw = b''
-        self.method = ""
-        self.uri = ""
-        self.contenttype = ""
-        self.contentlength = 0
-        self.boundary = b''
-
-    def parseurlencoded(data: bytes) -> dict:
+class httpform():
+    def __init__(self, contenttype="", boundary=b'', data=None):
+        self.contenttype = contenttype
+        self.boundary = boundary
+        if data == None:
+            self.data = dict()
+        else:
+            self.data = data
+        
+    def format(self):
+        if self.contenttype == "multipart/form-data":
+            start = self.boundary + b'\r\n'
+            end = self.boundary+b'--\r\n'
+            data = []
+            for k,v in self.data.items():
+                v: formdata
+                data.append(v.formatFormData())
+            return start + (self.boundary+b'\r\n').join(data) + end
+        elif self.contenttype == "application/x-www-form-urlencoded":
+            data = []
+            for k,v in self.data.items():
+                v: formdata
+                data.append(v.formatUrlEnc())
+            return b'&'.join(data)
+        else:
+            return b''
+    
+    def parseurlencoded(data: bytes):
+        contenttype = "application/x-www-form-urlencoded"
         parsed = dict()
         data = data.decode()
 
@@ -62,9 +91,10 @@ class httprequest():
         key,_,val = keyvalpair.partition(kvsep)
         parsed[key] = formdata(key,val)
 
-        return parsed
+        return httpform(contenttype=contenttype,data=parsed)
 
     def parsemultipart(data: bytes, boundary: bytes):
+        formcontenttype = "multipart/form-data"
         clrf = b'\r\n'
         boundary = b'--' + boundary
 
@@ -72,7 +102,7 @@ class httprequest():
         blockbytes,foundboundary,bodybytesremainder = data.partition(boundary)
         while foundboundary == boundary:
             headername = ""
-            filename = ""
+            filename = None
             contenttype = ""
             #if blockbytes == b'', then we have encountered the intial boundary
             if blockbytes == b'':
@@ -106,40 +136,73 @@ class httprequest():
 
             blockbytes,foundboundary,bodybytesremainder = bodybytesremainder.partition(boundary)
 
-        return blocks
+        return httpform(contenttype=formcontenttype,boundary=boundary,data=blocks)
 
-    def frombytes(data: bytes):
+class httprequest():
+    def __init__(self,method="",uri="",httpvers="HTTP/1.1",headers=None,body=b'',form=None,raw=b''):
+        self.method = method
+        self.uri = uri
+        self.httpvers = httpvers
+        self.body = body
+        if headers == None:
+            self.headers = defaultdict(bytes)
+        else:
+            self.headers = headers
+        self.form = form if form != None else httpform()
+        self.raw = raw
+    
+    def format(self):
+        if self.raw != b'':
+            return self.raw
+
+        lines = []
+        lines.append(f"{self.method} {self.uri} {self.httpvers}".encode())
+        lines.append(b'\r\n')
+        for k,v in self.headers.items():
+            lines.append(f"{k}: ".encode() + v + b'\r\n')
+        lines.append(b'\r\n')
+        if self.body != b'':
+            lines.append(self.body)
+        elif self.form != None:
+            self.form: httpform
+            lines.append(self.form.format())
+        lines.append(b'\r\n')
+
+        return b''.join(lines)
+
+    def send(self, sock: socket.socket):
+        sock.send(self.format())
+
+    def frombytes(databytes: bytes):
         clrf = b'\r\n'
         headersep = b': '
         headerend = clrf+clrf
-        req = httprequest()
-        req.raw = data
-        headerdata,_,bodydata = data.partition(headerend)
+        headerbytes,_,bodybytes = databytes.partition(headerend)
 
         #first line of header is the startline
-        startline,_,headerdata = headerdata.partition(clrf)
-        req.startline = startline.decode()
+        startlinebytes,_,headerbytes = headerbytes.partition(clrf)
+        startline = startlinebytes.decode()
 
         #the rest are http headers
-        while headerdata != b'':
-            header,_,headerdata = headerdata.partition(clrf)
-            headerkey,_,headerval = header.partition(headersep)
-            req.headers[headerkey.decode()] = headerval
+        headers = defaultdict(bytes)
+        while headerbytes != b'':
+            headerlinebytes,_,headerbytes = headerbytes.partition(clrf)
+            headerkey,_,headerval = headerlinebytes.partition(headersep)
+            headers[headerkey.decode()] = headerval
 
         #assign our properties from parsed values
-        req.contentlength = int(req.headers["Content-Length"] if req.headers["Content-Length"] != b'' else 0)
-        req.method,_,reststartline = req.startline.partition(" ")
-        req.uri,_,_ = reststartline.partition(" ")
-        req.contenttype,_,req.boundary = req.headers["Content-Type"].partition(b'; boundary=')
-        req.contenttype = req.contenttype.decode()
+        method,_,reststartline = startline.partition(" ")
+        uri,_,httpvers = reststartline.partition(" ")
+        contenttype,_,boundary = headers["Content-Type"].partition(b'; boundary=')
 
-        #next, handle the body
-        if req.contenttype == "multipart/form-data":
-            req.body = httprequest.parsemultipart(bodydata, req.boundary)
-        elif req.contenttype == "application/x-www-form-urlencoded":
-            req.body = httprequest.parseurlencoded(bodydata)
+        #next, handle the form data from body
+        form = None
+        if contenttype == b"multipart/form-data":
+            form = httpform.parsemultipart(bodybytes, boundary)
+        elif contenttype == b"application/x-www-form-urlencoded":
+            form = httpform.parseurlencoded(bodybytes)
         
-        return req
+        return httprequest(method=method,uri=uri,httpvers=httpvers,headers=headers,body=bodybytes,form=form,raw=databytes)
 
     def fromsocket(sock: socket.socket):
         clrf = b'\r\n'
