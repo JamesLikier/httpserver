@@ -33,17 +33,17 @@ class statuscodes(Enum):
     NOT_DEFINED = (-1,"Not Defined")
 
 class httpresponse():
-    def __init__(self, statuscode = statuscodes.NOT_DEFINED, body = b''):
+    def __init__(self, httpvers = "HTTP/1.1", statuscode = statuscodes.OK, body = b'', headers=None):
+        self.httpvers = httpvers
         self.statuscode = statuscode
         self.body = body
+        self.headers = headers if headers != None else dict()
     
     def format(self):
-        b = "HTTP/1.1 ".encode()
-        b += (str(self.statuscode.value[0]) + " ").encode()
-        b += (self.statuscode.value[1] + "\r\n").encode()
-        b += ("Content-Length: " + str(len(self.body)) + "\r\n\r\n").encode()
-        b += self.body
-        return b
+        startline = self.httpvers + f'{self.statuscode.value[0]} {self.statuscode.value[1]}\r\n'.encode()
+        if self.headers.get(b'Content-Length',None) == None:
+            self.headers[b'Content-Length'] = len(self.body)
+        return startline + b'\r\n'.join(self.headers) + b'\r\n\r\n' + self.body
 
     def send(self, sock: socket.socket):
         sock.send(self.format())
