@@ -40,10 +40,12 @@ class httpresponse():
         self.headers = headers if headers != None else dict()
     
     def format(self):
-        startline = self.httpvers + f'{self.statuscode.value[0]} {self.statuscode.value[1]}\r\n'.encode()
+        startline = self.httpvers.encode() + f' {self.statuscode.value[0]} {self.statuscode.value[1]}\r\n'.encode()
         if self.headers.get(b'Content-Length',None) == None:
-            self.headers[b'Content-Length'] = len(self.body)
-        return startline + b'\r\n'.join(self.headers) + b'\r\n\r\n' + self.body
+            self.headers[b'Content-Length'] = str(len(self.body)).encode()
+        rebuiltHeaders = [k+b': '+v for k,v in self.headers.items()]
+
+        return startline + b'\r\n'.join(rebuiltHeaders) + b'\r\n\r\n' + self.body
 
     def send(self, sock: socket.socket):
         sock.send(self.format())
