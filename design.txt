@@ -238,13 +238,17 @@ Header:
 
     + __init__(self, key: str, val: str | int):
         Initializes Header.
+        * Test case created.
     + asStr(self) -> str
         Return val as str.
+        * Test case created.
     + asInt(self) -> int
         Return val as int.
+        * Test case created.
     + format(self) -> bytes
         Return Header formatted in HTTP Header spec, as bytes.
         Formatting includes \r\n at the end of line.
+        * Test case created.
 
         Example:
             b'HeaderKey1: HeaderVal\r\n'
