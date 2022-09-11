@@ -1,0 +1,251 @@
+Server:
+    - addr: str
+    - port: int
+    - sock: socket
+    - listenThread: threading.Thread
+    - listening: bool
+    - handlers: dict[dict]
+    - staticHandlers: dict
+    - handler404 = Server.default404
+
+    + __init__(self, addr: str, port: int)
+        Intializes server.
+    + start(self) -> None
+        Begins listening on addr:port.
+    + stop(self) -> None
+        Signals to listening thread to stop.
+    + default404(req: Request, match: re.Match, resp: Response) -> None
+        Provides a 404 Handler, in the event a custom handler is not provided.
+    + register(self, methods: tuple, uri: str) -> Function
+        Decorator function for adding a handler func to
+        handlers.
+    + registerStatic(self, uri: str) -> Function
+        Decorator function for adding a handler func to
+        statisHandlers.
+    + dispatch(self, req: Request, sock: socket, resp: Response) -> None
+        Finds matching handler for request.  Passes Request, socket,
+        and Response to handler.
+
+
+    + accept(self, sock: socket, remoteAddr) -> None
+        Handles accepted socket connections.
+        Creates Response and Request objects.
+        Attempts to dispatch the request.
+    + listen(self) -> None
+        Binds and listens on addr:port.
+        Passes accepted connections to accept in a new thread.
+
+
+StatusCode(Enum):
+    - OK = (200,"OK")
+    - NOT_FOUND = (400,"Not Found")
+
+Response:
+    - httpvers: str
+    - statuscode: StatusCode
+    - body: str | bytes | None
+    - headers: HeaderList
+    - cookies: CookieList
+    - sock: socket = None
+
+    + __init__(self, httpvers="HTTP/1.1", statuscode: StatusCode = StatusCode.OK,
+            body: str | bytes | None = None, headers: HeaderList | None = None,
+            cookies: CookieList | None = None, sock: socket | None = None)
+        Initializes response.
+    + format(self) -> bytes
+        Returns response formatted to HTTP Response specs, as bytes.
+    + send(self) -> None
+        Sends formatted response via sock.
+
+Request:
+    - httpvers: str = "HTTP/1.1"
+    - method: str
+    - uri: str
+    - body: bytes | str
+    - headers: HeaderList
+    - cookies: CookieList
+    - form: Form | None
+    - raw: bytes | None
+    - sock: socket
+
+    + __init__(self, httpvers="HTTP/1.1", method: str, uri: str, body: bytes | str,
+            headers: HeaderList | None = None, cookies: CookieList | None = None,
+            form: Form | None = None, raw: bytes | None = None, sock: socket | None = None)
+        Initializes request.
+    + format(self) -> bytes
+        Returns request formatted to HTTP Request specs.
+    + send(self) -> None
+        Sends request formatted to HTTP Request specs via sock.
+    + fromBytes(data: bytes) -> Request
+        Returns Request parsed from data.
+    + fromSocket(sock: socket) -> Request
+        Returns Request read from sock.
+
+ContentType(Enum):
+    - URLEnc = "application/x-www-form-urlencoded"
+    - MultiPart = "multipart/form-data"
+
+Form:
+    - contentType: ContentType
+    - boundary: bytes
+    - _data: dict
+
+    + __init__(self, contentType: ContentType, boundary: str | bytes | None = None)
+        Initializes form.
+    + addField(self, name: str, val: str | bytes,
+                contentType: ContentType | str | None,
+                filename: str | None) -> None
+        Creates and inserts FormData into _data.
+    + fromURLEncStr(data: str) -> Form
+        Returns Form parsed from data.
+    + fromMultiPartBytes(data: bytes, contentType: ContentType,
+                boundary: bytes) -> Form
+        Returns Form parsed from data.
+    + format(self) -> bytes
+        Returns form formatted to HTTP Specs of ContentType.
+
+@dataclass
+FormData:
+    - name: str
+    - val: bytes
+    - contentType: ContentType | str | None
+    - filename: str | None
+
+    + formatUrlEnc(self) -> bytes
+        Return FormData in URLEncoded format as bytes.
+    + formatMultiPart(self) -> bytes
+        Return FormData in MultiPart format as bytes.
+    + asStr(self) -> str
+        Return val as str.
+    + asBytes(self) -> bytes
+        Return val as bytes.
+    + asBool(self) -> bool
+        Return val as bool.
+    + asInt(self) -> int
+        Return val as int.
+
+CookieFormatMode(Enum):
+    - REQUEST = 1
+    - RESPONSE = 2
+
+CookieList:
+    - _data: dict
+
+    + __init__(self):
+        Initializes CookieList.
+    + addCookie(self, key: str, val: str | int, **options) -> None
+        Creates and inserts Cookie into _data.
+    + getCookie(self, key: str) -> Cookie | None
+        Returns Cookie if found, else None.
+    + cookies(self) -> collections.abc.Iterator[Cookie]
+        Returns iterator over _data.
+    + format(self, mode: CookieFormatMode = CookieFormatMode.RESPONSE) -> bytes
+        Returns contents of _data formatted to HTTP Header specs, as single bytes.
+
+        Example:
+            CookieFormatMode.RESPONSE
+                b'Set-Cookie: Key=Val\r\n'
+                b'Set-Cookie: Key=Val; OptKey=OptVal\r\n'
+                b'Set-Cookie: Key1=Val1\r\nSet-Cookie: Key2=Val2\r\n'
+                b'Set-Cookie: Key1=Val1; OptKey=OptVal;\r\nSet-Cookie: Key2=Val2\r\n'
+            
+            CookieFormatMode.REQUEST
+                b'Cookie: Key=Val'
+                b'Cookie: Key1=Val1, Key2=Val2'
+    + fromRequestHeaderLine(line: str | bytes) -> CookieList
+        Returns CookieList generated from parsing line with HTTP Request
+        Header specs.
+
+Cookie:
+    - key: str
+    - val: str | int
+    - options: CookieOptionList
+    
+    + __init__(self, key: str, val: str):
+        Initializes Cookie.
+    + asStr(self) -> str
+        Returns val as str.
+    + asInt(self) -> int
+        Returns val as int.
+    + addOption(self, key: str, val: str | int) -> None
+        Creates and inserts CookieOption into options.
+    + getOption(self, key: str) -> CookieOption | None
+        Returns CookieOption if found, else None.
+    + format(self, mode: CookieFormatMode = CookieFormatMode.RESPONSE) -> bytes
+        Returns cookie formatted in HTTP Header specs, as bytes.
+        Formatting includes \r\n at end of line.
+
+        Example:
+            CookieFormatMode.RESPONSE
+                b'Set-Cookie: Key=Val\r\n'
+                b'Set-Cookie: Key=Val; OptKey=OptVal;\r\n'
+            CookieFormatMode.REQUEST
+                b'Cookie: Key=Val'
+
+CookieOptionList:
+    - _data: dict
+
+    + __init__(self):
+        Initializes CookieOptionList.
+    + addOption(self, key: str, val: str | int) -> None
+        Creates and inserts CookieOption into _data.
+    + getOption(self, key: str) -> CookieOption | None
+        Returns CookieOption if found, else None.
+    + options(self) -> collections.abc.Iterator[CookieOption]
+        Returns iterator over _data.
+    + format(self) -> str
+        Returns all options in _data, formatted in HTTP Header specs,
+        as a single str.
+
+        Example:
+            "Key=Val;"
+            "Key1=Val; Key2=Val;"
+
+CookieOption:
+    - key: str
+    - val: str | int
+
+    + __init__(self, key: str, val: str | int):
+        Initializes CookieOption.
+    + format(self) -> str
+        Returns CookieOption formatted to HTTP Cookie Specs, as str.
+
+        Example:
+            "Key=Val"
+
+
+HeaderList:
+    - _data: dict
+
+    + __init__(self):
+        Initializes HeaderList.
+    + addHeader(self, key: str, val: str | int) -> None
+        Creates Header and inserts into _data.
+    + getHeader(self, key: str) -> Header | None
+        Returns Header if found, else None.
+    + headers(self) -> collections.abc.Iterator[Header]
+        Returns iterator over _data.
+    + format(self) -> bytes
+        Returns all headers in _data, formatted in HTTP Header specs,
+        as single bytes object.
+
+        Example:
+            b'HeaderKey1: HeaderVal\r\nHeaderKey2: HeaderVal; Param1=Val\r\n'
+
+Header:
+    - key: str
+    - val: str | int
+
+    + __init__(self, key: str, val: str | int):
+        Initializes Header.
+    + asStr(self) -> str
+        Return val as str.
+    + asInt(self) -> int
+        Return val as int.
+    + format(self) -> bytes
+        Return Header formatted in HTTP Header spec, as bytes.
+        Formatting includes \r\n at the end of line.
+
+        Example:
+            b'HeaderKey1: HeaderVal\r\n'
+            b'HeaderKey2: HeaderVal; Param1=Val\r\n'
