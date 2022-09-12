@@ -187,15 +187,20 @@ CookieOptionList:
 
     + __init__(self):
         Initializes CookieOptionList.
+        * Test case created.
     + addOption(self, key: str, val: str | int) -> None
         Creates and inserts CookieOption into _data.
+        * Test case created.
     + getOption(self, key: str) -> CookieOption | None
         Returns CookieOption if found, else None.
+        * Test case created.
     + options(self) -> collections.abc.Iterator[CookieOption]
         Returns iterator over _data.
+        * Test case created.
     + format(self) -> str
         Returns all options in _data, formatted in HTTP Header specs,
         as a single str.
+        * Test case created.
 
         Example:
             "Key=Val;"

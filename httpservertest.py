@@ -1,5 +1,5 @@
 import unittest
-from httpserver import Header, HeaderList, CookieOption
+from httpserver import Header, HeaderList, CookieOption, CookieOptionList
 
 class TestHeader(unittest.TestCase):
     def test_init(self):
@@ -137,9 +137,66 @@ class TestCookieOption(unittest.TestCase):
         key = "key"
         val = "val"
         co = CookieOption(key,val)
-        self.assertEqual(co.format(),f'{key}={val}')
+        self.assertEqual(co.format(),f'{key}={val};')
 
         key = "key"
         val = 1
         co = CookieOption(key,val)
-        self.assertEqual(co.format(),f'{key}={val}')
+        self.assertEqual(co.format(),f'{key}={val};')
+
+class TestCookieOptionList(unittest.TestCase):
+    def test_init(self):
+        col = CookieOptionList()
+        self.assertIsNotNone(col._data)
+
+    def test_addAndGetOption(self):
+        col = CookieOptionList()
+
+        key = "key"
+        val = "val"
+        col.addOption(key,val)
+        o = col.getOption(key)
+        self.assertEqual(o.key,key)
+        self.assertEqual(o.val,val)
+
+        key = "key2"
+        val = 2
+        col.addOption(key,val)
+        o = col.getOption(key)
+        self.assertEqual(o.key,key)
+        self.assertEqual(o.val,val)
+
+        o = col.getOption("doesnotexist")
+        self.assertIsNone(o)
+
+    def test_options(self):
+        col = CookieOptionList()
+
+        contents = [co for co in col.options()]
+        self.assertEqual(len(contents), 0)
+
+        col.addOption("key","val")
+        contents = [co for co in col.options()]
+        self.assertEqual(len(contents), 1)
+
+        col.addOption("key2",2)
+        contents = [co for co in col.options()]
+        self.assertEqual(len(contents), 2)
+
+    def test_format(self):
+        col = CookieOptionList()
+
+        formatStr = col.format()
+        self.assertEqual(formatStr,"")
+
+        key = "key"
+        val = "val"
+        col.addOption(key,val)
+        formatStr = col.format()
+        self.assertEqual(formatStr,"key=val;")
+
+        key = "key2"
+        val = 2
+        col.addOption(key,val)
+        formatStr = col.format()
+        self.assertEqual(formatStr,"key=val; key2=2;")
