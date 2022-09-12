@@ -1,5 +1,5 @@
 import unittest
-from httpserver import Header, HeaderList
+from httpserver import Header, HeaderList, CookieOption
 
 class TestHeader(unittest.TestCase):
     def test_init(self):
@@ -114,3 +114,32 @@ class TestHeaderList(unittest.TestCase):
         hl.addHeader("k3","3; op=val")
         formatBytes = hl.format()
         self.assertEqual(formatBytes,b'k1: one\r\nk2: 2\r\nk3: 3; op=val\r\n')
+
+class TestCookieOption(unittest.TestCase):
+    def test_init(self):
+        self.assertRaises(Exception,CookieOption)
+        self.assertRaises(Exception,CookieOption,key="key")
+        self.assertRaises(Exception,CookieOption,val="val")
+
+        key = "key"
+        val = "val"
+        co = CookieOption(key,val)
+        self.assertEqual(co.key,key)
+        self.assertEqual(co.val,val)
+
+        key = "key"
+        val = 1
+        co = CookieOption(key,val)
+        self.assertEqual(co.key,key)
+        self.assertEqual(co.val,val)
+
+    def test_format(self):
+        key = "key"
+        val = "val"
+        co = CookieOption(key,val)
+        self.assertEqual(co.format(),f'{key}={val}')
+
+        key = "key"
+        val = 1
+        co = CookieOption(key,val)
+        self.assertEqual(co.format(),f'{key}={val}')

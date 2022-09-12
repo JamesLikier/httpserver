@@ -207,8 +207,10 @@ CookieOption:
 
     + __init__(self, key: str, val: str | int):
         Initializes CookieOption.
+        * Test case created.
     + format(self) -> str
         Returns CookieOption formatted to HTTP Cookie Specs, as str.
+        * Test case created.
 
         Example:
             "Key=Val"
