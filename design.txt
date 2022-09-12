@@ -40,42 +40,51 @@ StatusCode(Enum):
     - OK = (200,"OK")
     - NOT_FOUND = (400,"Not Found")
 
-Response:
+HTTPBase:
     - httpvers: str
-    - statuscode: StatusCode
     - body: str | bytes | None
-    - headers: HeaderList
-    - cookies: CookieList
+    - headers: dict[str]
+    - cookies: dict[str]
     - sock: socket = None
-
-    + __init__(self, httpvers="HTTP/1.1", statuscode: StatusCode = StatusCode.OK,
-            body: str | bytes | None = None, headers: HeaderList | None = None,
-            cookies: CookieList | None = None, sock: socket | None = None)
-        Initializes response.
-    + format(self) -> bytes
-        Returns response formatted to HTTP Response specs, as bytes.
+    
+    + __init__(self,httpvers: str, body: str | bytes | None,
+                headers: dict[str] | None, cookies: dict[str] | None,
+                sock: socket | None)
+    + formatHeaders(self) -> bytes
+        Returns headers formatted to HTTP Response specs, as bytes.
+    + abstract formatCookies(self) -> bytes
+        Must implement this method in child class.
+    + abstract format(self) -> bytes
+        Must implement this method in child class.
     + send(self) -> None
         Sends formatted response via sock.
 
-Request:
-    - httpvers: str = "HTTP/1.1"
+Response(HTTPBase):
+    - statuscode: StatusCode
+
+    + __init__(self, httpvers="HTTP/1.1", statuscode: StatusCode = StatusCode.OK,
+            body: str | bytes | None = None, headers: dict[str] | None = None,
+            cookies: dict[str] | None = None, sock: socket | None = None)
+        Initializes response.
+    + formatCookies(self) -> bytes
+        Returns cookies formatted to HTTP Response specs, as bytes.
+    + format(self) -> bytes
+        Returns response formatted to HTTP Response specs, as bytes.
+
+Request(HTTPBase):
     - method: str
     - uri: str
-    - body: bytes | str
-    - headers: HeaderList
-    - cookies: CookieList
     - form: Form | None
     - raw: bytes | None
-    - sock: socket
 
     + __init__(self, httpvers="HTTP/1.1", method: str, uri: str, body: bytes | str,
-            headers: HeaderList | None = None, cookies: CookieList | None = None,
+            headers: dict[str] | None = None, cookies: dict[str] | None = None,
             form: Form | None = None, raw: bytes | None = None, sock: socket | None = None)
         Initializes request.
+    + formatCookies(self) -> bytes
+        Returns cookies formatted to HTTP Request specs, as bytes.
     + format(self) -> bytes
         Returns request formatted to HTTP Request specs.
-    + send(self) -> None
-        Sends request formatted to HTTP Request specs via sock.
     + fromBytes(data: bytes) -> Request
         Returns Request parsed from data.
     + fromSocket(sock: socket) -> Request
@@ -123,145 +132,3 @@ FormData:
         Return val as bool.
     + asInt(self) -> int
         Return val as int.
-
-CookieFormatMode(Enum):
-    - REQUEST = 1
-    - RESPONSE = 2
-
-CookieList:
-    - _data: dict
-
-    + __init__(self):
-        Initializes CookieList.
-    + addCookie(self, key: str, val: str | int, **options) -> None
-        Creates and inserts Cookie into _data.
-    + getCookie(self, key: str) -> Cookie | None
-        Returns Cookie if found, else None.
-    + cookies(self) -> collections.abc.Iterator[Cookie]
-        Returns iterator over _data.
-    + format(self, mode: CookieFormatMode = CookieFormatMode.RESPONSE) -> bytes
-        Returns contents of _data formatted to HTTP Header specs, as single bytes.
-
-        Example:
-            CookieFormatMode.RESPONSE
-                b'Set-Cookie: Key=Val\r\n'
-                b'Set-Cookie: Key=Val; OptKey=OptVal\r\n'
-                b'Set-Cookie: Key1=Val1\r\nSet-Cookie: Key2=Val2\r\n'
-                b'Set-Cookie: Key1=Val1; OptKey=OptVal;\r\nSet-Cookie: Key2=Val2\r\n'
-            
-            CookieFormatMode.REQUEST
-                b'Cookie: Key=Val'
-                b'Cookie: Key1=Val1, Key2=Val2'
-    + fromRequestHeaderLine(line: str | bytes) -> CookieList
-        Returns CookieList generated from parsing line with HTTP Request
-        Header specs.
-
-Cookie:
-    - key: str
-    - val: str | int
-    - options: CookieOptionList
-    
-    + __init__(self, key: str, val: str):
-        Initializes Cookie.
-    + asStr(self) -> str
-        Returns val as str.
-    + asInt(self) -> int
-        Returns val as int.
-    + addOption(self, key: str, val: str | int) -> None
-        Creates and inserts CookieOption into options.
-    + getOption(self, key: str) -> CookieOption | None
-        Returns CookieOption if found, else None.
-    + format(self, mode: CookieFormatMode = CookieFormatMode.RESPONSE) -> bytes
-        Returns cookie formatted in HTTP Header specs, as bytes.
-        Formatting includes \r\n at end of line.
-
-        Example:
-            CookieFormatMode.RESPONSE
-                b'Set-Cookie: Key=Val\r\n'
-                b'Set-Cookie: Key=Val; OptKey=OptVal;\r\n'
-            CookieFormatMode.REQUEST
-                b'Cookie: Key=Val'
-
-CookieOptionList:
-    - _data: dict
-
-    + __init__(self):
-        Initializes CookieOptionList.
-        * Test case created.
-    + addOption(self, key: str, val: str | int) -> None
-        Creates and inserts CookieOption into _data.
-        * Test case created.
-    + getOption(self, key: str) -> CookieOption | None
-        Returns CookieOption if found, else None.
-        * Test case created.
-    + options(self) -> collections.abc.Iterator[CookieOption]
-        Returns iterator over _data.
-        * Test case created.
-    + format(self) -> str
-        Returns all options in _data, formatted in HTTP Header specs,
-        as a single str.
-        * Test case created.
-
-        Example:
-            "Key=Val;"
-            "Key1=Val; Key2=Val;"
-
-CookieOption:
-    - key: str
-    - val: str | int
-
-    + __init__(self, key: str, val: str | int):
-        Initializes CookieOption.
-        * Test case created.
-    + format(self) -> str
-        Returns CookieOption formatted to HTTP Cookie Specs, as str.
-        * Test case created.
-
-        Example:
-            "Key=Val"
-
-
-HeaderList:
-    - _data: dict
-
-    + __init__(self):
-        Initializes HeaderList.
-        * Test case created.
-    + addHeader(self, key: str, val: str | int) -> None
-        Creates Header and inserts into _data.
-        * Test case created.
-    + getHeader(self, key: str) -> Header | None
-        Returns Header if found, else None.
-        * Test case created.
-    + headers(self) -> collections.abc.Iterator[Header]
-        Returns iterator over _data.
-        * Test case created.
-    + format(self) -> bytes
-        Returns all headers in _data, formatted in HTTP Header specs,
-        as single bytes object.
-        * Test case created.
-
-        Example:
-            b'HeaderKey1: HeaderVal\r\nHeaderKey2: HeaderVal; Param1=Val\r\n'
-
-Header:
-    - key: str
-    - val: str | int
-
-    + __init__(self, key: str, val: str | int):
-        Initializes Header.
-        * Test case created.
-    + asStr(self) -> str
-        Return val as str.
-        * Test case created.
-    + asInt(self) -> int
-        Return val as int.
-        * Test case created.
-    + format(self) -> bytes
-        Return Header formatted in HTTP Header spec, as bytes.
-        Formatting includes \r\n at the end of line.
-        * Test case created.
-
-        Example:
-            b'HeaderKey1: HeaderVal\r\n'
-            b'HeaderKey2: HeaderVal; Param1=Val\r\n'
