@@ -1,5 +1,5 @@
 import unittest
-from httpserver import Header
+from httpserver import Header, HeaderList
 
 class TestHeader(unittest.TestCase):
     def test_init(self):
@@ -63,3 +63,54 @@ class TestHeader(unittest.TestCase):
         h = Header(key=key, val=val)
         expected = f'{key}: {val}\r\n'.encode()
         self.assertEqual(h.format(),expected)
+
+class TestHeaderList(unittest.TestCase):
+    def test_init(self):
+        hl = HeaderList()
+        self.assertIsNotNone(hl._data)
+
+    def test_addAndGetHeader(self):
+        hl = HeaderList()
+        hl.addHeader("testkey","testval")
+        hl.addHeader("testkey2",1)
+
+        h = hl.getHeader("testkey")
+        self.assertEqual(h.key,"testkey")
+        self.assertEqual(h.val,"testval")
+
+        h = hl.getHeader("testkey2")
+        self.assertEqual(h.key,"testkey2")
+        self.assertEqual(h.val,1)
+
+        h = hl.getHeader("doesnotexist")
+        self.assertIsNone(h)
+
+    def test_headers(self):
+        hl = HeaderList()
+        
+        contents = [h for h in hl.headers()]
+        self.assertEqual(len(contents),0)
+
+        hl.addHeader("k1","one")
+        hl.addHeader("k2",2)
+
+        contents = [h for h in hl.headers()]
+        self.assertEqual(len(contents),2)
+
+    def test_format(self):
+        hl = HeaderList()
+
+        formatBytes = hl.format()
+        self.assertEqual(formatBytes,b'')
+
+        hl.addHeader("k1","one")
+        formatBytes = hl.format()
+        self.assertEqual(formatBytes,b'k1: one\r\n')
+
+        hl.addHeader("k2",2)
+        formatBytes = hl.format()
+        self.assertEqual(formatBytes,b'k1: one\r\nk2: 2\r\n')
+
+        hl.addHeader("k3","3; op=val")
+        formatBytes = hl.format()
+        self.assertEqual(formatBytes,b'k1: one\r\nk2: 2\r\nk3: 3; op=val\r\n')

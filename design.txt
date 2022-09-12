@@ -219,15 +219,20 @@ HeaderList:
 
     + __init__(self):
         Initializes HeaderList.
+        * Test case created.
     + addHeader(self, key: str, val: str | int) -> None
         Creates Header and inserts into _data.
+        * Test case created.
     + getHeader(self, key: str) -> Header | None
         Returns Header if found, else None.
+        * Test case created.
     + headers(self) -> collections.abc.Iterator[Header]
         Returns iterator over _data.
+        * Test case created.
     + format(self) -> bytes
         Returns all headers in _data, formatted in HTTP Header specs,
         as single bytes object.
+        * Test case created.
 
         Example:
             b'HeaderKey1: HeaderVal\r\nHeaderKey2: HeaderVal; Param1=Val\r\n'
