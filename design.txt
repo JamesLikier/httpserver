@@ -105,6 +105,8 @@ Form:
                 contentType: ContentType | str | None,
                 filename: str | None) -> None
         Creates and inserts FormData into _data.
+    + getField(self, name: str) -> FormData | None
+        Returns FormData if found, else None.
     + fromURLEncStr(data: str) -> Form
         Returns Form parsed from data.
     + fromMultiPartBytes(data: bytes, contentType: ContentType,
@@ -120,7 +122,7 @@ FormData:
     - contentType: ContentType | str | None
     - filename: str | None
 
-    + formatUrlEnc(self) -> bytes
+    + formatURLEnc(self) -> bytes
         Return FormData in URLEncoded format as bytes.
     + formatMultiPart(self) -> bytes
         Return FormData in MultiPart format as bytes.
