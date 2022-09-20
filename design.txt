@@ -16,18 +16,18 @@ Server:
         Signals to listening thread to stop.
     + default404(req: Request, match: re.Match, resp: Response) -> None
         Provides a 404 Handler, in the event a custom handler is not provided.
-    + register(self, methods: tuple, uri: str) -> Function
+    + @register404(self,func) -> Function
+        Decorator function for adding a 404 handler.
+    + @register(self, methods: tuple, uri: str) -> Function
         Decorator function for adding a handler func to
         handlers.
-    + registerStatic(self, uri: str) -> Function
+    + @registerStatic(self, uri: str) -> Function
         Decorator function for adding a handler func to
         statisHandlers.
     + dispatch(self, req: Request, sock: socket, resp: Response) -> None
         Finds matching handler for request.  Passes Request, socket,
         and Response to handler.
-
-
-    + accept(self, sock: socket, remoteAddr) -> None
+    + accept(self, conn: tuple(sock,remoteAddr)) -> None
         Handles accepted socket connections.
         Creates Response and Request objects.
         Attempts to dispatch the request.
@@ -36,36 +36,48 @@ Server:
         Passes accepted connections to accept in a new thread.
 
 
-StatusCode(Enum):
-    - OK = (200,"OK")
-    - NOT_FOUND = (400,"Not Found")
+StatusCode = namedtuple("StatusCode","code text")
+STATUS_CODES = {
+    404 = StatusCode(404,"Not Found")
+    200 = StatusCode(200,"OK")
+}
+
+IncompleteStartline(Exception)
 
 HTTPBase:
     - httpvers: str
     - body: str | bytes | None
-    - headers: dict[str]
-    - cookies: dict[str]
+    - headers: dict
+    - cookies: dict
     - sock: socket = None
     
-    + __init__(self,httpvers: str, body: str | bytes | None,
-                headers: dict[str] | None, cookies: dict[str] | None,
+    + __init__(self,httpvers: str = "HTTP/1.1",
+                body: str | bytes | None,
+                headers: dict | None,
+                cookies: dict | None,
                 sock: socket | None)
+    + formatStartline(self) -> bytes
+        must implement this method in child class.
     + formatHeaders(self) -> bytes
         Returns headers formatted to HTTP Response specs, as bytes.
-    + abstract formatCookies(self) -> bytes
+    + formatCookies(self) -> bytes
         Must implement this method in child class.
-    + abstract format(self) -> bytes
+    + formatBody(self) -> bytes
+        Returns body formatted to HTTP Specs, as bytes.
+    + format(self) -> bytes
         Must implement this method in child class.
-    + send(self) -> None
-        Sends formatted response via sock.
+    + send(self, sock: socket | None = None) -> None
+        Sends formatted response via sock or self.sock.
 
 Response(HTTPBase):
-    - statuscode: StatusCode
+    - statuscode: int
 
-    + __init__(self, httpvers="HTTP/1.1", statuscode: StatusCode = StatusCode.OK,
+    + __init__(self, httpvers="HTTP/1.1", statuscode: StatusCode = STATUS_CODES[200],
             body: str | bytes | None = None, headers: dict[str] | None = None,
             cookies: dict[str] | None = None, sock: socket | None = None)
         Initializes response.
+    + formatStartline(self) -> bytes
+        Returns startline formatted to HTTP Response specs, as bytes.
     + formatCookies(self) -> bytes
         Returns cookies formatted to HTTP Response specs, as bytes.
     + format(self) -> bytes
@@ -81,8 +93,13 @@ Request(HTTPBase):
             headers: dict[str] | None = None, cookies: dict[str] | None = None,
             form: Form | None = None, raw: bytes | None = None, sock: socket | None = None)
         Initializes request.
+    + formatStartline(self) -> bytes
+        Returns startline formatted to HTTP Request specs, as bytes.
+        Raises IncompleteStartline if method or uri are empty str.
     + formatCookies(self) -> bytes
         Returns cookies formatted to HTTP Request specs, as bytes.
+    + formatBody(self) -> bytes
+        Returns body as bytes.
     + format(self) -> bytes
         Returns request formatted to HTTP Request specs.
     + fromBytes(data: bytes) -> Request
@@ -90,37 +107,39 @@ Request(HTTPBase):
     + fromSocket(sock: socket) -> Request
         Returns Request read from sock.
 
-ContentType(Enum):
-    - URLEnc = "application/x-www-form-urlencoded"
-    - MultiPart = "multipart/form-data"
+CONTENT_TYPES = {
+    "URLEnc": "application/x-www-form-urlencoded",
+    "MultiPart": "multipart/form-data"
+}
 
-Form:
-    - contentType: ContentType
+Form(collections.abc.MutableMapping):
+    - contentType: str
     - boundary: bytes
     - _data: dict
 
-    + __init__(self, contentType: ContentType, boundary: str | bytes | None = None)
+    + __init__(self, contentType: str = CONTENT_TYPES["URLEnc"],
+                boundary: str | bytes | None = None)
         Initializes form.
-    + addField(self, name: str, val: str | bytes,
-                contentType: ContentType | str | None,
-                filename: str | None) -> None
-        Creates and inserts FormData into _data.
-    + getField(self, name: str) -> FormData | None
-        Returns FormData if found, else None.
+    + __getitem__(self,key) -> Any
+    + __setitem__(self,key,value)
+    + __delitem__(self,key)
+    + __iter__(self) -> Iterator
+    + __len__(self) -> int
+    + boundaryAsBytes(self) -> bytes
+        Returns boundary as bytes.
     + fromURLEncStr(data: str) -> Form
         Returns Form parsed from data.
-    + fromMultiPartBytes(data: bytes, contentType: ContentType,
-                boundary: bytes) -> Form
+    + fromMultiPartBytes(data: bytes, boundary: bytes | str) -> Form
         Returns Form parsed from data.
     + format(self) -> bytes
         Returns form formatted to HTTP Specs of ContentType.
 
 @dataclass
 FormData:
-    - name: str
-    - val: bytes
-    - contentType: ContentType | str | None
-    - filename: str | None
+    - name: str = "
+    - val: bytes = b''
+    - contentType: str | None = None
+    - filename: str | None = None
 
     + formatURLEnc(self) -> bytes
         Return FormData in URLEncoded format as bytes.
