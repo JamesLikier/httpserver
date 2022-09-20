@@ -358,7 +358,7 @@ class Server():
                 if m is not None:
                     handler = self.handlers[req.method][uriRegex]
                     break
-        if handler is not None:
+        if handler is None:
             for uriRegex in self.statichandlers.keys():
                 uriRegex: re.Pattern
                 m = uriRegex.match(req.uri)
