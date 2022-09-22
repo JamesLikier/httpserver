@@ -334,6 +334,7 @@ class Server():
     
     def register404(self,func):
         self.handler404 = func
+        return func
     
     def register(self, methods: list, uriRegex: str):
         def inner(func):
@@ -341,11 +342,13 @@ class Server():
                 if method not in self.handlers:
                     self.handlers[method] = dict()
                 self.handlers[method][re.compile(uriRegex)] = func
+            return func
         return inner
     
     def registerstatic(self, uriRegex: str):
         def inner(func):
             self.statichandlers[re.compile(uriRegex)] = func
+            return func
         return inner
 
     def dispatch(self, req: Request, sock: socket.socket):
