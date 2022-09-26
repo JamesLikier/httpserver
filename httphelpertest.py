@@ -1,9 +1,9 @@
 import unittest
-from httpserver import STATUS_CODES,StatusCode
-from httpserver import HTTPBase
-from httpserver import Response
-from httpserver import Request, Form, FormData, CONTENT_TYPES
-from httpserver import IncompleteStartline
+from httphelper import STATUS_CODES,StatusCode
+from httphelper import HTTPBase
+from httphelper import Response
+from httphelper import Request, Form, FormData, CONTENT_TYPES
+from httphelper import IncompleteStartline
 
 class TestSTATUSCODES(unittest.TestCase):
     def test_STATUSCODES(self):
