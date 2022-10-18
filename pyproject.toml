@@ -6,5 +6,5 @@ build-backend = "setuptools.build_meta"
 name = "jlpyhttp"
 version = "1.0.0"
 dependencies = [
-    "git+https://github.com/JamesLikier/jlpyutil",
+    "JLPyUtil @ git+https://github.com/JamesLikier/jlpyutil",
 ]
