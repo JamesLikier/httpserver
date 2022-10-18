@@ -1,6 +1,6 @@
-import httpserver
-from httphelper import Request, Response, STATUS_CODES
-from sessionhandler import SessionHandler
+from jlpyhttp import httpserver
+from jlpyhttp.httphelper import Request, Response, STATUS_CODES
+from jlpyhttp.sessionhandler import SessionHandler
 from re import Match
 import logging
 
