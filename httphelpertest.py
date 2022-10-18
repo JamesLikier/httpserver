@@ -93,7 +93,7 @@ class TestResponse(unittest.TestCase):
         self.assertEqual(r.formatCookies(),cl)
     def test_format(self):
         r = Response()
-        testline = r.formatStartline() + b'\r\n'
+        testline = r.formatStartline() + b'Content-Type: text/html\r\n\r\n'
         self.assertEqual(r.format(),testline)
         
         params = {
@@ -103,7 +103,7 @@ class TestResponse(unittest.TestCase):
         }
         r = Response(**params)
         startline = b'HTTP/1.1 200 OK\r\n'
-        headers = b'header1: headerval\r\n'
+        headers = b'header1: headerval\r\nContent-Type: text/html\r\n'
         cookies = b'Set-Cookie: cookie1=cookieval\r\n'
         body = b'test'
         contentlength = (f'Content-Length: {len(body)}\r\n').encode()
