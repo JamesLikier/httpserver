@@ -1,5 +1,4 @@
-__pycache__/*
-static/*
-httpserver-env
-httpserver-env/*
+__pycache__/
+static/
+httpserver-env/
 logfile
