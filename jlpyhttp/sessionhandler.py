@@ -86,6 +86,3 @@ class SessionHandler():
             resp.cookies[self.userCookie] = '; Path=/'
             resp.cookies[self.sessionCookie] = '; Path=/'
         return resp
-    
-    def resetAdminPassword(self):
-        self.setPassword("admin","password")
