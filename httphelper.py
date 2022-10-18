@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from collections.abc import MutableMapping
 from typing import Any
 import re
+import logging
 
 StatusCode = namedtuple("StatusCode","code text")
 STATUS_CODES = {
@@ -12,7 +13,12 @@ STATUS_CODES = {
 }
 CONTENT_TYPES = {
     "URLEnc": "application/x-www-form-urlencoded",
-    "MultiPart": "multipart/form-data"
+    "MultiPart": "multipart/form-data",
+    "html": "text/html",
+    "js": "text/javascript",
+    "css": "text/css",
+    "txt": "text/plain",
+    "svg": "image/svg+xml"
 }
 class IncompleteStartline(Exception):
     pass
@@ -66,6 +72,7 @@ class Response(HTTPBase):
                 body: str | bytes | None = None,
                 headers: dict | None = None,
                 cookies: dict | None = None,
+                contentType: str | None = None,
                 sock: socket.socket | None = None):
         super().__init__(httpvers=httpvers,
                         body=body,
@@ -73,6 +80,8 @@ class Response(HTTPBase):
                         cookies=cookies,
                         sock=sock)
         self.statuscode = statuscode
+        if "Content-Type" not in self.headers:
+            self.headers["Content-Type"] = contentType or CONTENT_TYPES["html"]
     
     def formatStartline(self):
         return f'{self.httpvers} {self.statuscode.code} {self.statuscode.text}\r\n'.encode()
@@ -153,13 +162,15 @@ class Form(MutableMapping):
             return self.boundary.encode()
         else:
             return self.boundary
-    def fromURLEncStr(data: str) -> 'Form':
-        f = Form(contentType=CONTENT_TYPES["URLEnc"])
+    @classmethod
+    def fromURLEncStr(cls, data: str) -> 'Form':
+        f = cls(contentType=CONTENT_TYPES["URLEnc"])
         for part in partitions(data,'&'):
             k,_,v = part.partition('=')
             f[k] = FormData(name=k,value=v)
         return f
-    def fromMultiPartBytes(data: bytes, boundary: bytes | str) -> 'Form':
+    @classmethod
+    def fromMultiPartBytes(cls, data: bytes, boundary: bytes | str) -> 'Form':
         boundary = boundary if isinstance(boundary,bytes) else boundary.encode()
         f = Form(contentType=CONTENT_TYPES["MultiPart"],
                 boundary=boundary)
@@ -182,13 +193,13 @@ class Form(MutableMapping):
             header = header.decode()
 
             match: re.Match
-            match = re.search('Content-Disposition: form-data;\s?name="([^"]*)"',header)
+            match = re.search(r'Content-Disposition: form-data;\s?name="([^"]*)"',header)
             name = match.group(1) if match is not None else ""
 
-            match = re.search('filename="([^"]*)"',header)
+            match = re.search(r'filename="([^"]*)"',header)
             filename = match.group(1) if match is not None else None
 
-            match = re.search('Content-Type: ([^;\r\n]+)',header)
+            match = re.search(r'Content-Type: ([^;\r\n]+)',header)
             contenttype = match.group(1) if match is not None else None
 
             f[name] = FormData(name=name,value=body,contentType=contenttype,filename=filename)
@@ -257,7 +268,8 @@ class Request(HTTPBase):
             cl = (f'Content-Length: {len(b)}\r\n').encode()
         return sl + h + cl + c + b'\r\n' + b
     
-    def fromBytes(data: bytes) -> 'Request':
+    @classmethod
+    def fromBytes(cls, data: bytes) -> 'Request':
         ##per http spec, header and bytes are separated by 2 CRLF
         headerbytes,_,bodybytes = data.partition(b'\r\n\r\n')
 
@@ -266,7 +278,7 @@ class Request(HTTPBase):
 
         ##per http spec, first line is always startline
         startline,_,headerstr = headerstr.partition('\r\n')
-        m = re.match("([^\s]+) ([^\s]+) ([^\s]+)",startline)
+        m = re.match(r"([^\s]+) ([^\s]+) ([^\s]+)",startline)
         method = m.group(1)
         uri = m.group(2)
         httpvers = m.group(3)
@@ -285,7 +297,7 @@ class Request(HTTPBase):
                 headers[hkey] = hval
         form = None
         if 'Content-Type' in headers:
-            m = re.match("([^;]+);\s?boundary=(.*)",headers["Content-Type"])
+            m = re.match(r"([^;]+);\s?boundary=(.*)",headers["Content-Type"])
             if m is not None:
                 ct = m.group(1)
                 b = m.group(2)
@@ -294,11 +306,13 @@ class Request(HTTPBase):
             elif headers['Content-Type'] == CONTENT_TYPES['URLEnc']:
                 form = Form.fromURLEncStr(bodybytes.decode())
         body = bodybytes
+        logging.debug(f'Request Object: {startline}\n{headers}\n{cookies}\n{body}')
         
-        return Request(method=method,uri=uri,httpvers=httpvers,headers=headers,
+        return cls(method=method,uri=uri,httpvers=httpvers,headers=headers,
                         cookies=cookies,body=body,form=form,raw=data)
 
-    def fromSocket(sock: socket.socket) -> 'Request':
+    @classmethod
+    def fromSocket(cls, sock: socket.socket) -> 'Request':
         recvsize = 1024
         data = sock.recv(recvsize)
         ##per http spec, headers continue until 2 CRLF
@@ -312,4 +326,4 @@ class Request(HTTPBase):
             cl = int(m.group(1))
             while((len(data) - (hsepIndex + 4)) < cl):
                 data += sock.recv(recvsize)
-        return Request.fromBytes(data)
+        return cls.fromBytes(data)

@@ -1,2 +1,5 @@
 __pycache__/*
 static/*
+httpserver-env
+httpserver-env/*
+logfile

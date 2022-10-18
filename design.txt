@@ -14,7 +14,7 @@ Server:
         Begins listening on addr:port.
     + stop(self) -> None
         Signals to listening thread to stop.
-    + default404(req: Request, match: re.Match, resp: Response) -> None
+    + default404(req: Request, match: Match, resp: Response, session, sessionHandler: SessionHandler):
         Provides a 404 Handler, in the event a custom handler is not provided.
     + @register404(self,func) -> Function
         Decorator function for adding a 404 handler.
