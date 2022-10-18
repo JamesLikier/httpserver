@@ -1,8 +1,8 @@
 import re
 from socket import socket
-from httphelper import Request, Response, STATUS_CODES
+from jlpyhttp.httphelper import Request, Response, STATUS_CODES
 import logging
-from sessionhandler import SessionHandler
+from jlpyhttp.sessionhandler import SessionHandler
 from re import Match
 
 class RouteHandler():
