@@ -2,7 +2,7 @@ from jlpyhttp.routehandler import RouteHandler
 import socket
 import threading
 import logging
-from httphelper import Request
+from jlpyhttp.httphelper import Request
 
 class Server():
     def __init__(self,addr: str, port: int, rh: RouteHandler = None):
