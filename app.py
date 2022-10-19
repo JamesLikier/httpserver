@@ -121,4 +121,3 @@ def static(req: Request, match: Match, resp: Response, session, sessionHandler: 
 
 print("Starting server...\n")
 s.start()
-s.listenthread.join()

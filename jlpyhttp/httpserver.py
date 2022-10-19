@@ -5,7 +5,7 @@ import logging
 from jlpyhttp.httphelper import Request
 
 class Server():
-    def __init__(self,addr: str, port: int, rh: RouteHandler = None):
+    def __init__(self,addr: str, port: int, rh: RouteHandler = None, runAsync = False):
         logging.info(f'Creating Server with {addr=},{port=}')
         self.addr = addr
         self.port = port
@@ -13,6 +13,7 @@ class Server():
         self.listenthread = None
         self.listening = False
         self.rh = rh or RouteHandler()
+        self.runAsync = runAsync
     
     def accept(self,conn):
         logging.info(f'Accepted connection from {conn[1]=}')
@@ -38,4 +39,5 @@ class Server():
             self.listening = True
             self.listenthread = threading.Thread(target=self.listen)
             self.listenthread.start()
-        ##test
+            if not self.runAsync:
+                self.listenthread.join()
