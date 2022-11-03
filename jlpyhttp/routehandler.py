@@ -1,19 +1,21 @@
 import re
-from socket import socket
-from jlpyhttp.httphelper import Request, Response, STATUS_CODES
-import logging
-from jlpyhttp.sessionhandler import SessionHandler
 from re import Match
+from socket import socket
+import logging
+from jlpyhttp.http import Request, Response, STATUS_CODES
+from jlpyhttp.sessionhandler import SessionHandler
+from jlpyhttp.authhandler import AuthHandler
 
 class RouteHandler():
-    def __init__(self, sessionHandler = None):
+    def __init__(self, sessionHandler: SessionHandler = None, authHandler: AuthHandler = None):
         self.handlers = dict()
         self.statichandlers = dict()
         self.handler404 = None
         self.sessionHandler = sessionHandler or SessionHandler()
+        self.authHandler = authHandler
 
     @staticmethod
-    def default404(req: Request, match: Match, resp: Response, session, sessionHandler: SessionHandler):
+    def default404(resp,**kwargs):
         resp.statuscode = STATUS_CODES[404]
         resp.send()
 
@@ -62,4 +64,4 @@ class RouteHandler():
         else:
             logging.info(f'Dispatching handler for: {req.uri} {req.method}')
         handler = handler or self.handler404 or RouteHandler.default404
-        handler(req, m, Response(sock=sock), self.sessionHandler.validateSession(req=req), self.sessionHandler)
+        handler(req=req, match=m, resp=Response(sock=sock), valid=self.sessionHandler.validateSession(req=req), sessionHandler=self.sessionHandler, authHandler=self.authHandler)

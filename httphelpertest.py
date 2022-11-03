@@ -1,9 +1,9 @@
 import unittest
-from jlpyhttp.httphelper import STATUS_CODES,StatusCode
-from jlpyhttp.httphelper import HTTPBase
-from jlpyhttp.httphelper import Response
-from jlpyhttp.httphelper import Request, Form, FormData, CONTENT_TYPES
-from jlpyhttp.httphelper import IncompleteStartline
+from jlpyhttp.http import STATUS_CODES,StatusCode
+from jlpyhttp.http import HTTPBase
+from jlpyhttp.http import Response
+from jlpyhttp.http import Request, Form, FormData, CONTENT_TYPES
+from jlpyhttp.http import IncompleteStartline
 
 class TestSTATUSCODES(unittest.TestCase):
     def test_STATUSCODES(self):
