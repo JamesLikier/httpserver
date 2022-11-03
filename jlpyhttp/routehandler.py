@@ -64,4 +64,4 @@ class RouteHandler():
         else:
             logging.info(f'Dispatching handler for: {req.uri} {req.method}')
         handler = handler or self.handler404 or RouteHandler.default404
-        handler(req=req, match=m, resp=Response(sock=sock), valid=self.sessionHandler.validateSession(req=req), sessionHandler=self.sessionHandler, authHandler=self.authHandler)
+        handler(req=req, match=m, resp=Response(sock=sock), session=self.sessionHandler.validateSession(req=req), sessionHandler=self.sessionHandler, authHandler=self.authHandler)
