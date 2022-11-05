@@ -3,7 +3,7 @@ from jlpyhttp.http import Response
 
 class AuthHandler(ABC):
     @abstractmethod
-    def validateAuth(self, username: str, password: str, resp: Response = None) -> bool:
+    def validateAuth(self, username: str, password: str) -> tuple[bool,int]:
         pass
 
     @abstractmethod
